@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Стаття — STATUS Car Wash</title>
+    <link href="https://fonts.googleapis.com/css2?family=Mulish:wght@300;400;500;600;700;800;900&family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+    <!-- Header -->
+    <nav class="navbar navbar-expand-lg fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">
+                <i class="fa-solid fa-car-rear" style="color: var(--primary-color);"></i>
+                STATUS <span>CAR WASH</span>
+            </a>
+            <div class="ms-auto">
+                <a href="blog.html" class="btn btn-outline-custom btn-sm"><i class="fa-solid fa-arrow-left me-1"></i> Назад до блогу</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Article Detail Section -->
+    <section class="section-padding" style="padding-top: 160px;">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-8" id="article-content-container">
+                    <!-- Dynamic Article loaded via JS -->
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container text-center">
+            <p class="small text-muted mb-0">&copy; 2026 STATUS Car Wash. Всі права захищені.</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const articleIndex = urlParams.get('id');
+
+            let articles = JSON.parse(localStorage.getItem('status_blog_articles'));
+            if (!articles) {
+                // Default fallback
+                articles = [
+                    {
+                        title: 'Як правильно мити авто взимку на самообслуговуванні',
+                        date: '10 Серпня, 2026',
+                        image: 'https://images.unsplash.com/photo-1601362840469-51e4d8d58785?auto=format&fit=crop&q=80&w=800',
+                        content: 'Головні правила безпечного миття кузова у морози: використання теплої води, обдув замків та сушка осмосом. На самообслуговуванні важливо дотримуватись температурного режиму та ретельно просушувати гумки дверей.'
+                    },
+                    {
+                        title: 'Що таке осмос і чому після нього немає розводів?',
+                        date: '5 Серпня, 2026',
+                        image: 'https://images.unsplash.com/photo-1520340356584-f9917d1eea6f?auto=format&fit=crop&q=80&w=800',
+                        content: 'Демінералізована вода (осмос) проходить через складні фільтри, видаляючи всі мінерали та солі. Завдяки цьому під час висихання крапель на кузові не залишається білих розводів.'
+                    },
+                    {
+                        title: 'Відкриття нового комплексу STATUS у Києві',
+                        date: '1 Серпня, 2026',
+                        image: 'https://images.unsplash.com/photo-1507764923504-cd90bf7da772?auto=format&fit=crop&q=80&w=800',
+                        content: 'Збільшуємо кількість постів та покращуємо сервіс для наших клієнтів на нових локаціях. Запрошуємо всіх автомобілістів на нові точки мережі STATUS.'
+                    }
+                ];
+            }
+
+            const container = document.getElementById('article-content-container');
+            const art = articles[articleIndex];
+
+            if (art) {
+                document.title = `${art.title} — STATUS Car Wash`;
+                container.innerHTML = `
+                    <div class="feature-card border-secondary p-4 p-md-5">
+                        <span class="badge bg-primary mb-3">Новина / Стаття</span>
+                        <h1 class="text-white font-chakra mb-3" style="font-size: 2.2rem; line-height: 1.3;">${art.title}</h1>
+                        <p class="text-muted mb-4"><i class="fa-solid fa-calendar-days me-1"></i> ${art.date}</p>
+                        ${art.image ? `<img src="${art.image}" alt="${art.title}" class="img-fluid rounded mb-4 w-100" style="max-height: 450px; object-fit: cover;">` : ''}
+                        <div class="article-text" style="color: var(--text-muted); font-size: 1.1rem; line-height: 1.9; white-space: pre-line;">
+                            ${art.content}
+                        </div>
+                        <div class="mt-5 pt-3 border-top border-secondary">
+                            <a href="blog.html" class="btn btn-outline-custom btn-sm"><i class="fa-solid fa-arrow-left me-1"></i> Повернутися до всіх статей</a>
+                        </div>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div class="text-center py-5">
+                        <h2 class="text-white">Статтю не знайдено</h2>
+                        <p class="text-muted mb-4">Можливо, її було видалено адміністратором.</p>
+                        <a href="blog.html" class="btn btn-custom">До блогу</a>
+                    </div>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>
