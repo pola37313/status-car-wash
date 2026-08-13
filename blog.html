@@ -9,10 +9,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="assets/css/style.css">
-    <!-- Marked.js for parsing Markdown files -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <!-- Frontmatter parser -->
-    <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
 </head>
 <body>
 
@@ -50,7 +46,7 @@
     <section class="section-padding pt-4">
         <div class="container">
             <div class="row g-4" id="blog-container">
-                <div class="col-12 text-center text-muted">Завантаження статей...</div>
+                <div class="col-12 text-center text-muted">Завантаження статей з Google Таблиці...</div>
             </div>
         </div>
     </section>
@@ -62,59 +58,97 @@
         </div>
     </footer>
 
+    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // List of Markdown blog files managed by Decap CMS
-        const blogFiles = [
-            'content/blog/yak-pravylno-myty-avto-vzymku.md',
-            'content/blog/scho-take-osmos.md',
-            'content/blog/vidkryttya-novogo-kompleksu.md'
-        ];
+        // Google Sheets CSV Export URL
+        const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1wg4tp4uShhYWfO8SEjeHlH32z0hAh5cgK3fW8bUg9EM/export?format=csv';
 
-        async function loadBlogArticles() {
-            const container = document.getElementById('blog-container');
-            container.innerHTML = '';
-
-            for (let i = 0; i < blogFiles.length; i++) {
-                try {
-                    const response = await fetch(blogFiles[i]);
-                    if (!response.ok) continue;
-                    const text = await response.text();
-
-                    // Parse frontmatter and body
-                    const parts = text.split('---');
-                    if (parts.length >= 3) {
-                        const frontmatter = jsyaml.load(parts[1]);
-                        const body = parts.slice(2).join('---').trim();
-                        const snippet = body.replace(/[#*`_]/g, '').substring(0, 90);
-
-                        const col = document.createElement('div');
-                        col.className = 'col-md-4';
-                        col.innerHTML = `
-                            <div class="feature-card h-100 d-flex flex-column justify-content-between border-secondary">
-                                <div>
-                                    ${frontmatter.image ? `<img src="${frontmatter.image}" alt="${frontmatter.title}" class="img-fluid rounded mb-3" style="height: 180px; width: 100%; object-fit: cover;">` : ''}
-                                    <span class="badge bg-primary mb-2">Блог</span>
-                                    <h3>${frontmatter.title}</h3>
-                                    <p class="text-muted small mb-2"><i class="fa-solid fa-calendar-days me-1"></i> ${frontmatter.date || ''}</p>
-                                    <p class="small text-muted mb-4">${snippet}...</p>
-                                </div>
-                                <a href="article.html?file=${encodeURIComponent(blogFiles[i])}" class="btn btn-outline-custom w-100 btn-sm">Читати статтю</a>
-                            </div>
-                        `;
-                        container.appendChild(col);
-                    }
-                } catch (err) {
-                    console.error('Error loading article:', blogFiles[i], err);
+        // Simple CSV Parser handling quoted fields with commas/newlines
+        function parseCSV(text) {
+            let lines = [];
+            let row = [''];
+            let inQuotes = false;
+            
+            for (let i = 0; i < text.length; i++) {
+                let c = text[i];
+                let nextC = text[i+1];
+                
+                if (c === '"' && inQuotes && nextC === '"') {
+                    row[row.length - 1] += '"';
+                    i++;
+                } else if (c === '"') {
+                    inQuotes = !inQuotes;
+                } else if (c === ',' && !inQuotes) {
+                    row.push('');
+                } else if ((c === '\r' && nextC === '\n') || (c === '\n' && !inQuotes)) {
+                    if (c === '\r') i++;
+                    lines.push(row);
+                    row = [''];
+                } else {
+                    row[row.length - 1] += c;
                 }
             }
+            if (row.length > 1 || row[0] !== '') {
+                lines.push(row);
+            }
+            return lines;
+        }
 
-            if (container.children.length === 0) {
-                container.innerHTML = '<div class="col-12 text-center text-muted">Поки що немає опублікованих статей.</div>';
+        async function loadGoogleSheetBlog() {
+            const container = document.getElementById('blog-container');
+            try {
+                const response = await fetch(SHEET_CSV_URL);
+                if (!response.ok) throw new Error('Network response was not ok');
+                const csvText = await response.text();
+                
+                const rows = parseCSV(csvText);
+                
+                // Skip header (row 0), process data starting from row 1
+                const posts = rows.slice(1).filter(r => r.length >= 4 && r[1] && r[1].trim() !== '');
+
+                if (posts.length === 0) {
+                    container.innerHTML = '<div class="col-12 text-center text-muted">Поки що немає опублікованих статей у таблиці.</div>';
+                    return;
+                }
+
+                container.innerHTML = '';
+                
+                // Reverse to show newest (bottom rows) first, or keep standard order
+                posts.forEach((post, index) => {
+                    const date = post[0] || '';
+                    const title = post[1] || '';
+                    const image = post[2] || '';
+                    const content = post[3] || '';
+                    const snippet = content.replace(/[#*`_]/g, '').substring(0, 90);
+
+                    const col = document.createElement('div');
+                    col.className = 'col-md-4';
+                    col.innerHTML = `
+                        <div class="feature-card h-100 d-flex flex-column justify-content-between border-secondary">
+                            <div>
+                                ${image ? `<img src="${image}" alt="${title}" class="img-fluid rounded mb-3" style="height: 180px; width: 100%; object-fit: cover;">` : ''}
+                                <span class="badge bg-primary mb-2">Блог</span>
+                                <h3>${title}</h3>
+                                <p class="text-muted small mb-2"><i class="fa-solid fa-calendar-days me-1"></i> ${date}</p>
+                                <p class="small text-muted mb-4">${snippet}...</p>
+                            </div>
+                            <a href="article.html?id=${index}" class="btn btn-outline-custom w-100 btn-sm">Читати статтю</a>
+                        </div>
+                    `;
+                    container.appendChild(col);
+                });
+
+                // Save posts to sessionStorage so article.html can read them
+                sessionStorage.setItem('status_sheet_posts', JSON.stringify(posts));
+
+            } catch (err) {
+                console.error('Error loading Google Sheet CSV:', err);
+                container.innerHTML = '<div class="col-12 text-center text-danger">Не вдалося завантажити статті з Google Таблиці.</div>';
             }
         }
 
-        document.addEventListener('DOMContentLoaded', loadBlogArticles);
+        document.addEventListener('DOMContentLoaded', loadGoogleSheetBlog);
     </script>
 </body>
 </html>

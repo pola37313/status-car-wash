@@ -8,9 +8,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="assets/css/style.css">
-    <!-- Marked.js for rendering markdown -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
 </head>
 <body>
 
@@ -47,36 +44,73 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1wg4tp4uShhYWfO8SEjeHlH32z0hAh5cgK3fW8bUg9EM/export?format=csv';
+
+        function parseCSV(text) {
+            let lines = [];
+            let row = [''];
+            let inQuotes = false;
+            
+            for (let i = 0; i < text.length; i++) {
+                let c = text[i];
+                let nextC = text[i+1];
+                
+                if (c === '"' && inQuotes && nextC === '"') {
+                    row[row.length - 1] += '"';
+                    i++;
+                } else if (c === '"') {
+                    inQuotes = !inQuotes;
+                } else if (c === ',' && !inQuotes) {
+                    row.push('');
+                } else if ((c === '\r' && nextC === '\n') || (c === '\n' && !inQuotes)) {
+                    if (c === '\r') i++;
+                    lines.push(row);
+                    row = [''];
+                } else {
+                    row[row.length - 1] += c;
+                }
+            }
+            if (row.length > 1 || row[0] !== '') {
+                lines.push(row);
+            }
+            return lines;
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
             const urlParams = new URLSearchParams(window.location.search);
-            const filePath = urlParams.get('file');
+            const postId = parseInt(urlParams.get('id'));
             const container = document.getElementById('article-content-container');
 
-            if (!filePath) {
+            if (isNaN(postId)) {
                 container.innerHTML = '<h3 class="text-white text-center">Статтю не знайдено</h3>';
                 return;
             }
 
             try {
-                const response = await fetch(filePath);
-                if (!response.ok) throw new Error('Network response was not ok');
-                const text = await response.text();
+                let posts = JSON.parse(sessionStorage.getItem('status_sheet_posts'));
+                if (!posts) {
+                    const response = await fetch(SHEET_CSV_URL);
+                    const csvText = await response.text();
+                    const rows = parseCSV(csvText);
+                    posts = rows.slice(1).filter(r => r.length >= 4 && r[1] && r[1].trim() !== '');
+                }
 
-                const parts = text.split('---');
-                if (parts.length >= 3) {
-                    const frontmatter = jsyaml.load(parts[1]);
-                    const body = parts.slice(2).join('---').trim();
-                    const htmlBody = marked.parse(body);
+                const post = posts[postId];
+                if (post) {
+                    const date = post[0] || '';
+                    const title = post[1] || '';
+                    const image = post[2] || '';
+                    const content = post[3] || '';
 
-                    document.title = `${frontmatter.title} — STATUS Car Wash`;
+                    document.title = `${title} — STATUS Car Wash`;
                     container.innerHTML = `
                         <div class="feature-card border-secondary p-4 p-md-5">
                             <span class="badge bg-primary mb-3">Блог</span>
-                            <h1 class="text-white font-chakra mb-3" style="font-size: 2.2rem; line-height: 1.3;">${frontmatter.title}</h1>
-                            <p class="text-muted mb-4"><i class="fa-solid fa-calendar-days me-1"></i> ${frontmatter.date || ''}</p>
-                            ${frontmatter.image ? `<img src="${frontmatter.image}" alt="${frontmatter.title}" class="img-fluid rounded mb-4 w-100" style="max-height: 450px; object-fit: cover;">` : ''}
-                            <div class="article-text text-muted" style="font-size: 1.1rem; line-height: 1.9;">
-                                ${htmlBody}
+                            <h1 class="text-white font-chakra mb-3" style="font-size: 2.2rem; line-height: 1.3;">${title}</h1>
+                            <p class="text-muted mb-4"><i class="fa-solid fa-calendar-days me-1"></i> ${date}</p>
+                            ${image ? `<img src="${image}" alt="${title}" class="img-fluid rounded mb-4 w-100" style="max-height: 450px; object-fit: cover;">` : ''}
+                            <div class="article-text text-muted" style="font-size: 1.1rem; line-height: 1.9; white-space: pre-line;">
+                                ${content}
                             </div>
                             <div class="mt-5 pt-3 border-top border-secondary">
                                 <a href="blog.html" class="btn btn-outline-custom btn-sm"><i class="fa-solid fa-arrow-left me-1"></i> Повернутися до всіх статей</a>
@@ -84,7 +118,7 @@
                         </div>
                     `;
                 } else {
-                    throw new Error('Invalid format');
+                    container.innerHTML = '<h3 class="text-white text-center">Статтю не знайдено</h3>';
                 }
             } catch (err) {
                 console.error(err);
